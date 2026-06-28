@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reinforcement Learning: Interactive Explainer</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>Reinforcement <em>Learning</em></h1>
+  <p class="subtitle">Four interactive examples covering the core ideas of RL and Q-Learning. All computation runs in your browser: no server, no internet, no loading.</p>
+</header>
+<div class="main">
+
+  <!-- Formula strip -->
+  <div class="fstrip">
+    <div class="fmain" id="globalFormula">
+      <span class="ac">Q(s,a)</span> ← <span class="gd">Q(s,a)</span> + α[<span class="gn">r</span> + γ·max<sub>a'</sub><span class="pu">Q(s',a')</span> − <span class="gd">Q(s,a)</span>]
+    </div>
+    <div class="fleg">
+      <div class="fl"><div class="fldot" style="background:var(--accent)"></div>Q(s,a) current</div>
+      <div class="fl"><div class="fldot" style="background:var(--green)"></div>reward r</div>
+      <div class="fl"><div class="fldot" style="background:var(--gold)"></div>α learning rate</div>
+      <div class="fl"><div class="fldot" style="background:var(--purple)"></div>γ discount</div>
+      <div class="fl"><div class="fldot" style="background:var(--orange)"></div>ε exploration</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchMode('basics')">🧠 RL Basics</button>
+    <button class="tab-btn" onclick="switchMode('qlearning')">⚡ Q-Learning</button>
+    <button class="tab-btn" onclick="switchMode('gridworld')">🗺️ Grid World</button>
+    <button class="tab-btn" onclick="switchMode('epsilon')">🎲 Exploration</button>
+    <span class="kbd-hint"><kbd>,</kbd> Prev &nbsp;<kbd>.</kbd> Next &nbsp;<kbd>Space</kbd> Play</span>
+  </div>
+
+  <!-- Scenario controls -->
+  <div class="sc active" id="sc-basics">
+    <div class="sc-row">
+      <div class="sc-item"><label>Scenario</label>
+        <select id="basics-sc" onchange="resetAll()">
+          <option value="robot">🤖 Robot Navigation</option>
+          <option value="game">🎮 Game Agent</option>
+          <option value="trader">📈 Trading Agent</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="sc" id="sc-qlearning">
+    <div class="sc-row">
+      <div class="sc-item"><label>Learning Rate α</label>
+        <div style="display:flex;align-items:center;gap:6px"><input type="range" id="ql-alpha" min="1" max="9" value="5" oninput="sv('ql-av',this.value*0.1|0||0.1+(this.value*0.1-Math.floor(this.value*0.1)).toFixed(1).slice(1))"><span class="sc-val" id="ql-av">0.5</span></div></div>
+      <div class="sc-item"><label>Discount γ</label>
+        <div style="display:flex;align-items:center;gap:6px"><input type="range" id="ql-gamma" min="1" max="9" value="8" oninput="sv('ql-gv',(this.value/10).toFixed(1))"><span class="sc-val" id="ql-gv">0.8</span></div></div>
+      <div class="sc-item"><label>Scenario</label>
+        <select id="ql-sc" onchange="resetAll()">
+          <option value="simple">3-State Chain</option>
+          <option value="maze">4-State Maze</option>
+          <option value="cliff">Cliff Walk</option>
+        </select>
+      </div>
+      <button class="btn primary" onclick="resetAll()">Apply</button>
+    </div>
+  </div>
+
+  <div class="sc" id="sc-gridworld">
+    <div class="sc-row">
+      <div class="sc-item"><label>Grid Size</label>
+        <select id="gw-size" onchange="resetAll()">
+          <option value="3">3×3</option>
+          <option value="4" selected>4×4</option>
+          <option value="5">5×5</option>
+        </select>
+      </div>
+      <div class="sc-item"><label>Episodes</label>
+        <div style="display:flex;align-items:center;gap:6px"><input type="range" id="gw-ep" min="5" max="30" value="15" oninput="sv('gw-epv',this.value)"><span class="sc-val" id="gw-epv">15</span></div></div>
+      <button class="btn primary" onclick="resetAll()">Apply</button>
+    </div>
+  </div>
+
+  <div class="sc" id="sc-epsilon">
+    <div class="sc-row">
+      <div class="sc-item"><label>ε Start</label>
+        <div style="display:flex;align-items:center;gap:6px"><input type="range" id="ep-start" min="5" max="10" value="10" oninput="sv('ep-sv',(this.value/10).toFixed(1))"><span class="sc-val" id="ep-sv">1.0</span></div></div>
+      <div class="sc-item"><label>ε Decay</label>
+        <div style="display:flex;align-items:center;gap:6px"><input type="range" id="ep-decay" min="80" max="99" value="92" oninput="sv('ep-dv',(this.value/100).toFixed(2))"><span class="sc-val" id="ep-dv">0.92</span></div></div>
+      <div class="sc-item"><label>Scenario</label>
+        <select id="ep-sc" onchange="resetAll()">
+          <option value="bandit">5-Arm Bandit</option>
+          <option value="maze">Maze Explorer</option>
+        </select>
+      </div>
+      <button class="btn primary" onclick="resetAll()">Apply</button>
+    </div>
+  </div>
+
+  <!-- Step header -->
+  <div class="step-header">
+    <div class="step-badge" id="stepBadge">Step 0</div>
+    <div class="step-title" id="stepTitle">Introduction</div>
+    <div class="dots" id="dotsWrap"></div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <button class="btn" id="btnPrev" onclick="prevStep()" disabled>◀ Prev</button>
+    <button class="btn primary" id="btnPlay" onclick="togglePlay()">▶ Play</button>
+    <button class="btn" id="btnNext" onclick="nextStep()">Next ▶</button>
+    <button class="btn danger" onclick="resetAll()">↺ Reset</button>
+  </div>
+
+  <!-- Formula card -->
+  <div class="fstrip" style="margin-bottom:12px">
+    <div class="fmain" id="formulaLine"></div>
+  </div>
+
+  <!-- Explain card -->
+  <div class="explain-card" id="explainCard">Loading...</div>
+
+  <!-- Chips -->
+  <div class="chips" id="chipsRow"></div>
+
+  <!-- Charts area (injected per mode) -->
+  <div id="chartsArea"></div>
+
+  <!-- Step history table -->
+  <div class="table-wrap">
+    <div class="table-head-bar"><span>Step History</span><span id="tableLabel"></span></div>
+    <div class="table-scroll-wrap">
+      <table><thead id="tHead"></thead><tbody id="tBody"></tbody></table>
+    </div>
+  </div>
+
+</div><!-- .main -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="data-builders.js"></script><!-- Pure RL simulation logic, no DOM -->
+<script src="charts.js"></script>      <!-- Chart.js wrapper + per-mode renderers -->
+<script src="ui.js"></script>          <!-- Globals, navigation, playback, init -->
+</body>
+</html>
