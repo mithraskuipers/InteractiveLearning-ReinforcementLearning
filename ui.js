@@ -11,6 +11,9 @@
 let mode = 'basics', cur = 0, total = 0, stepsData = [], playing = false, playTimer = null;
 const charts = {};
 
+/* Trained-agent playback state (greedy rollout of the learned policy) */
+let trainedFrames = [], trainedIdx = -1, trainedPlaying = false, trainedTimer = null;
+
 /* ------------------------------------------------
    DOM utilities
    ------------------------------------------------ */
@@ -145,6 +148,146 @@ function stopPlay(){
 }
 
 /* ------------------------------------------------
+   Trained agent playback
+   Once a demo has finished training (the walkthrough
+   above has produced a final Q-table), this replays
+   the LEARNED policy greedily — no exploration, no
+   scripted narrative — against the environment, so
+   you can watch the trained model actually perform.
+   ------------------------------------------------ */
+function playTrainedAgent(){
+  if(mode==='basics') return;
+  stopPlay();
+  if(trainedPlaying){ stopTrainedPlay(); return; }
+
+  const finalStep = stepsData[total];
+  if(mode==='qlearning'){
+    trainedFrames = rolloutQLearning(gv('ql-sc'), finalStep.cfg, finalStep.Q);
+  } else if(mode==='gridworld'){
+    trainedFrames = rolloutGridWorld(finalStep.N, finalStep.trapStates, finalStep.wallStates, finalStep.goalState, finalStep.Q);
+  } else {
+    trainedFrames = rolloutBandit(finalStep.trueValues, finalStep.Q, 12);
+  }
+  if(!trainedFrames.length) return;
+
+  trainedIdx = 0;
+  trainedPlaying = true;
+  document.getElementById('trainedPanel').classList.add('show');
+  const btn = document.getElementById('btnTrained');
+  btn.classList.add('active'); btn.textContent = '⏹ Stop Trained Run';
+  renderTrainedPanel();
+  trainedTimer = setInterval(()=>{
+    if(trainedIdx >= trainedFrames.length-1){ finishTrainedPlay(); return; }
+    trainedIdx++; renderTrainedPanel();
+  }, 700);
+}
+
+function finishTrainedPlay(){
+  trainedPlaying = false;
+  clearInterval(trainedTimer);
+  const btn = document.getElementById('btnTrained');
+  btn.classList.remove('active'); btn.textContent = '↻ Replay Trained Agent';
+}
+
+function stopTrainedPlay(){
+  trainedPlaying = false;
+  clearInterval(trainedTimer);
+  const btn = document.getElementById('btnTrained');
+  if(btn) { btn.classList.remove('active'); btn.textContent = trainedFrames.length ? '↻ Replay Trained Agent' : '🏁 Play Trained Agent'; }
+}
+
+function closeTrainedPanel(){
+  trainedPlaying = false;
+  clearInterval(trainedTimer);
+  trainedFrames = []; trainedIdx = -1;
+  const btn = document.getElementById('btnTrained');
+  if(btn){ btn.classList.remove('active'); btn.textContent = '🏁 Play Trained Agent'; }
+  document.getElementById('trainedPanel').classList.remove('show');
+}
+
+function renderTrainedPanel(){
+  const panel = document.getElementById('trainedPanel');
+  const frames = trainedFrames;
+  const f = frames[trainedIdx];
+  const isLast = trainedIdx === frames.length-1;
+  let bodyHtml = '', outcomeHtml = '';
+
+  if(mode==='qlearning'){
+    const cfg = stepsData[total].cfg;
+    bodyHtml += `<div class="trained-chain">` + cfg.states.map((st,i)=>{
+      const label = st.split('\n')[0];
+      const reached = frames.slice(0,trainedIdx+1).some(fr=>fr.ns===i);
+      const isCur = f && f.ns===i;
+      return `<div class="tc-node ${isCur?'active':reached?'done':''}">${label}</div>` +
+             (i<cfg.states.length-1 ? '<span class="tc-arrow">→</span>' : '');
+    }).join('') + `</div>`;
+    bodyHtml += `<div class="trained-log" style="margin-top:14px">` + frames.map((fr,i)=>
+      `<div class="trained-log-row ${i===trainedIdx?'active':''} ${fr.r>0?'good':fr.r<0?'bad':''}" style="display:${i<=trainedIdx?'flex':'none'}">
+        <span>s${fr.s} → <strong>${cfg.actions[fr.a]}</strong> → s${fr.ns}</span>&nbsp; r=${fr.r}${fr.terminal?' · terminal':''}
+      </div>`).join('') + `</div>`;
+    if(isLast){
+      const success = f.terminal && f.r>0;
+      outcomeHtml = `<div class="trained-summary">
+        <div class="trained-stat"><span class="l">Outcome</span><span class="v" style="color:${success?'var(--green)':'var(--text2)'}">${success?'Goal reached':'Episode ended'}</span></div>
+        <div class="trained-stat"><span class="l">Steps</span><span class="v">${frames.length}</span></div>
+        <div class="trained-stat"><span class="l">Total Reward</span><span class="v" style="color:${f.totalR>0?'var(--green)':'var(--red)'}">${f.totalR}</span></div>
+      </div>`;
+    }
+  } else if(mode==='gridworld'){
+    const { N, trapStates, wallStates, goalState } = stepsData[total];
+    const EMOJI={goal:'🏆',trap:'⚠️',wall:'⛔',agent:'🤖'};
+    const pathSoFar = new Set(frames.slice(0,trainedIdx+1).map(fr=>fr.ns).concat([0]));
+    const agentPos = f ? f.ns : 0;
+    let grid = `<div class="trained-mini-grid" style="grid-template-columns:repeat(${N},1fr)">`;
+    for(let i=0;i<N*N;i++){
+      const isWall=wallStates.includes(i), isGoal=i===goalState, isTrap=trapStates.includes(i), isAgent=i===agentPos, onPath=pathSoFar.has(i);
+      const cls = isWall?'tg-wall':isGoal?'tg-goal':isTrap?'tg-trap':isAgent?'tg-agent':onPath?'tg-path':'';
+      const icon = isAgent?EMOJI.agent:isGoal?EMOJI.goal:isTrap?EMOJI.trap:isWall?EMOJI.wall:'';
+      grid += `<div class="tg-cell ${cls}">${icon}</div>`;
+    }
+    grid += `</div>`;
+    const log = `<div class="trained-log">` + frames.map((fr,i)=>
+      `<div class="trained-log-row ${i===trainedIdx?'active':''} ${fr.isGoal?'good':fr.isTrap?'bad':''}" style="display:${i<=trainedIdx?'flex':'none'}">
+        <span>s${fr.s} ${fr.sym} → s${fr.ns}</span>&nbsp; r=${fr.r}${fr.isGoal?' · 🏆 goal':fr.isTrap?' · ⚠️ trap':''}
+      </div>`).join('') + `</div>`;
+    bodyHtml = `<div class="trained-body"><div class="trained-visual">${grid}</div>${log}</div>`;
+    if(isLast){
+      outcomeHtml = `<div class="trained-summary">
+        <div class="trained-stat"><span class="l">Outcome</span><span class="v" style="color:${f.isGoal?'var(--green)':f.isTrap?'var(--red)':'var(--text2)'}">${f.isGoal?'Goal reached':f.isTrap?'Fell in trap':'Stalled'}</span></div>
+        <div class="trained-stat"><span class="l">Steps</span><span class="v">${frames.length}</span></div>
+        <div class="trained-stat"><span class="l">Total Reward</span><span class="v" style="color:${f.totalR>0?'var(--green)':'var(--red)'}">${f.totalR}</span></div>
+      </div>`;
+    }
+  } else {
+    const labels = stepsData[total].labels;
+    const maxAbs = Math.max(...frames.map(fr=>Math.abs(fr.r)),1);
+    bodyHtml = `<div class="trained-arms">` + frames.map((fr,i)=>
+      `<div class="ta-row ${i===trainedIdx?'active':''}" style="display:${i<=trainedIdx?'flex':'none'}">
+        <span style="min-width:70px">${labels[fr.arm]}</span>
+        <div class="ta-bar-bg"><div class="ta-bar-fill" style="width:${Math.max(4,Math.abs(fr.r)/maxAbs*100)}%"></div></div>
+        <span style="min-width:50px;text-align:right;color:${fr.r>=0?'var(--green)':'var(--red)'}">${fr.r}</span>
+      </div>`).join('') + `</div>`;
+    if(isLast){
+      outcomeHtml = `<div class="trained-summary">
+        <div class="trained-stat"><span class="l">Pulls</span><span class="v">${frames.length}</span></div>
+        <div class="trained-stat"><span class="l">Arm Chosen</span><span class="v" style="color:var(--gold)">${labels[frames[0].arm]}</span></div>
+        <div class="trained-stat"><span class="l">Avg Reward</span><span class="v" style="color:var(--green)">${(f.cumR/frames.length).toFixed(2)}</span></div>
+      </div>`;
+    }
+  }
+
+  panel.innerHTML = `
+    <div class="trained-head">
+      <span class="trained-badge">🏁 Trained Agent — Greedy Policy</span>
+      <span class="trained-status">Step ${trainedIdx+1} / ${frames.length}${isLast?' · complete':''}</span>
+      <button class="trained-close" onclick="closeTrainedPanel()">✕ Close</button>
+    </div>
+    ${bodyHtml}
+    ${outcomeHtml}
+  `;
+}
+
+/* ------------------------------------------------
    Mode switching & full reset
    ------------------------------------------------ */
 function switchMode(m){
@@ -152,11 +295,12 @@ function switchMode(m){
   document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',['basics','qlearning','gridworld','epsilon'][i]===m));
   document.querySelectorAll('.sc').forEach(el=>el.classList.remove('active'));
   document.getElementById('sc-'+m).classList.add('active');
+  document.getElementById('btnTrained').disabled = (m==='basics');
   resetAll();
 }
 
 function resetAll(){
-  stopPlay(); cur=0;
+  stopPlay(); closeTrainedPanel(); cur=0;
   document.getElementById('tBody').innerHTML='';
   if(mode==='basics'){
     stepsData=buildBasics(gv('basics-sc'));

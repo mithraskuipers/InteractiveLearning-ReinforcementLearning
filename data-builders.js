@@ -127,14 +127,20 @@ function buildQLearning(sc, alpha, gamma){
     {name:'3-State Chain', states:['S0\n(Start)','S1\n(Mid)','S2\n(Goal)'], initQ:[[0,0],[0,0],[0,0]], trajectory:[
       {s:0,a:1,r:-0.1,ns:1},{s:1,a:1,r:-0.1,ns:2},{s:2,a:0,r:10,ns:2,'terminal':true},
       {s:0,a:1,r:-0.1,ns:1},{s:1,a:1,r:-0.1,ns:2},{s:2,a:0,r:10,ns:2,'terminal':true},
+      {s:0,a:1,r:-0.1,ns:1},{s:1,a:1,r:-0.1,ns:2},{s:2,a:0,r:10,ns:2,'terminal':true},
     ], actions:['←','→'], goalState:2, trapState:-1 },
     {name:'4-State Maze', states:['Start','Corridor','Room','Goal'], initQ:[[0,0,0],[0,0,0],[0,0,0],[0,0,0]], trajectory:[
       {s:0,a:1,r:-0.1,ns:1},{s:1,a:2,r:-0.1,ns:2},{s:2,a:1,r:-0.5,ns:1},{s:1,a:2,r:-0.1,ns:2},{s:2,a:2,r:10,ns:3,'terminal':true},
+      {s:0,a:1,r:-0.1,ns:1},{s:1,a:2,r:-0.1,ns:2},{s:2,a:2,r:10,ns:3,'terminal':true},
       {s:0,a:1,r:-0.1,ns:1},{s:1,a:2,r:-0.1,ns:2},{s:2,a:2,r:10,ns:3,'terminal':true},
     ], actions:['←','→','↑'], goalState:3, trapState:-1 },
     {name:'Cliff Walk', states:['Safe A','Safe B','Cliff!','Goal'], initQ:[[0,0],[0,0],[0,0],[0,0]], trajectory:[
       {s:0,a:1,r:-0.1,ns:1},{s:1,a:1,r:-100,ns:2,'trap':true},{s:0,a:1,r:-0.1,ns:1},{s:1,a:0,r:-0.1,ns:0},{s:0,a:1,r:-0.1,ns:1},{s:1,a:1,r:-100,ns:2,'trap':true},
       {s:0,a:0,r:-0.1,ns:0},{s:0,a:1,r:-0.1,ns:1},{s:1,a:0,r:-0.1,ns:0},{s:0,a:1,r:-0.1,ns:1},{s:1,a:1,r:10,ns:3,'terminal':true},
+      {s:0,a:1,r:-0.1,ns:1},{s:1,a:1,r:10,ns:3,'terminal':true},
+      {s:0,a:1,r:-0.1,ns:1},{s:1,a:1,r:10,ns:3,'terminal':true},
+      {s:0,a:1,r:-0.1,ns:1},{s:1,a:1,r:10,ns:3,'terminal':true},
+      {s:0,a:1,r:-0.1,ns:1},{s:1,a:1,r:10,ns:3,'terminal':true},
     ], actions:['←','→'], goalState:3, trapState:2 },
   ];
   const cfg = eps[sc==='simple'?0:sc==='maze'?1:2];
@@ -362,4 +368,111 @@ function buildEpsilon(sc, epStart, epDecay){
     }
   }
   return steps;
+}
+
+/* ------------------------------------------------
+   TRAINED-AGENT ROLLOUTS
+   Training (above) produces a learned Q-table. These
+   functions take that final Q-table and greedily
+   replay the learned policy against a lightweight
+   environment model — i.e. "run the trained model"
+   with exploration switched off. Pure functions,
+   deterministic, capped step counts (no infinite loops).
+   ------------------------------------------------ */
+
+/* Deterministic transition model for each Q-Learning scenario:
+   trans[state][action] = { ns, r, terminal? } */
+const QL_ENVS = {
+  simple: { trans: [
+    [ {ns:0,r:-0.1},              {ns:1,r:-0.1} ],
+    [ {ns:0,r:-0.1},              {ns:2,r:10,terminal:true} ],
+    [ {ns:2,r:0,terminal:true},   {ns:2,r:0,terminal:true} ],
+  ]},
+  maze: { trans: [
+    [ {ns:0,r:-0.1}, {ns:1,r:-0.1},  {ns:0,r:-0.1} ],
+    [ {ns:0,r:-0.1}, {ns:1,r:-0.1},  {ns:2,r:-0.1} ],
+    [ {ns:2,r:-0.1}, {ns:1,r:-0.5},  {ns:3,r:10,terminal:true} ],
+    [ {ns:3,r:0,terminal:true}, {ns:3,r:0,terminal:true}, {ns:3,r:0,terminal:true} ],
+  ]},
+  cliff: { trans: [
+    [ {ns:0,r:-0.1},                {ns:1,r:-0.1} ],
+    [ {ns:0,r:-0.1},                {ns:3,r:10,terminal:true} ],
+    [ {ns:0,r:-0.1,terminal:true},  {ns:0,r:-0.1,terminal:true} ],
+    [ {ns:3,r:0,terminal:true},     {ns:3,r:0,terminal:true} ],
+  ]}
+};
+
+/* Greedily replay the learned Q-Learning policy from the start state */
+function rolloutQLearning(sc, cfg, Q){
+  const env = QL_ENVS[sc].trans;
+  const frames = [];
+  let s = 0, totalR = 0;
+  for(let t=0; t<10; t++){
+    const row = Q[s];
+    const a = row.indexOf(Math.max(...row));
+    const {ns, r, terminal} = env[s][a];
+    totalR += r;
+    frames.push({ s, a, ns, r, totalR:+totalR.toFixed(2), terminal:!!terminal });
+    s = ns;
+    if(terminal) break;
+  }
+  return frames;
+}
+
+/* Greedily replay the learned Grid World policy from state 0 */
+function rolloutGridWorld(N, trapStates, wallStates, goalState, Q){
+  const ACTIONS=[[-1,0,'↑'],[1,0,'↓'],[0,-1,'←'],[0,1,'→']];
+  const stateToRC = s => [Math.floor(s/N), s%N];
+  const rcToState = (r,c) => r*N+c;
+  const goalRC = stateToRC(goalState);
+  const distToGoal = s => { const [r,c]=stateToRC(s); return Math.abs(r-goalRC[0])+Math.abs(c-goalRC[1]); };
+  function validMoves(s){
+    const [r,c] = stateToRC(s);
+    return ACTIONS.map(([dr,dc,sym],i)=>{
+      const nr=r+dr, nc=c+dc;
+      if(nr<0||nr>=N||nc<0||nc>=N) return null;
+      const ns=rcToState(nr,nc);
+      if(wallStates.includes(ns)) return null;
+      return {action:i, ns, sym};
+    }).filter(Boolean);
+  }
+  const frames = [];
+  let s = 0, totalR = 0;
+  const seen = new Set();
+  for(let t=0; t<N*N*2; t++){
+    const moves = validMoves(s);
+    if(!moves.length) break;
+    let best=-Infinity;
+    for(const m of moves) if(Q[s][m.action]>best) best=Q[s][m.action];
+    // Ties happen often on sparsely-visited cells — among equally-good
+    // actions, prefer the one that moves closer to the goal.
+    const tied = moves.filter(m=>Math.abs(Q[s][m.action]-best)<1e-6);
+    tied.sort((a,b)=>distToGoal(a.ns)-distToGoal(b.ns));
+    const chosen = tied[0];
+    const {action, ns, sym} = chosen;
+    const isTrap = trapStates.includes(ns);
+    const isGoal = ns===goalState;
+    const r = isGoal?10:isTrap?-5:-0.1;
+    totalR += r;
+    frames.push({ s, a:action, sym, ns, r, totalR:+totalR.toFixed(2), isGoal, isTrap });
+    s = ns;
+    if(isGoal||isTrap) break;
+    if(seen.has(s)) break; // stuck in a loop — stop the replay
+    seen.add(s);
+  }
+  return frames;
+}
+
+/* Greedily replay the learned bandit policy — always pull the best-known arm */
+function rolloutBandit(trueValues, Q, pulls=12){
+  const rng_ = rng(99);
+  const bestArm = Q.indexOf(Math.max(...Q));
+  const frames = [];
+  let cumR = 0;
+  for(let t=1; t<=pulls; t++){
+    const r = +(trueValues[bestArm] + (rng_()*2-1)*0.8).toFixed(2);
+    cumR += r;
+    frames.push({ t, arm:bestArm, r, cumR:+cumR.toFixed(2) });
+  }
+  return frames;
 }

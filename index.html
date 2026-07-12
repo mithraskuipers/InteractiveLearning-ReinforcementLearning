@@ -110,7 +110,11 @@
     <button class="btn primary" id="btnPlay" onclick="togglePlay()">▶ Play</button>
     <button class="btn" id="btnNext" onclick="nextStep()">Next ▶</button>
     <button class="btn danger" onclick="resetAll()">↺ Reset</button>
+    <button class="btn success" id="btnTrained" onclick="playTrainedAgent()" disabled title="Available for Q-Learning, Grid World, and Exploration demos">🏁 Play Trained Agent</button>
   </div>
+
+  <!-- Trained agent playback (greedy rollout of the learned policy) -->
+  <div class="trained-panel" id="trainedPanel"></div>
 
   <!-- Formula card -->
   <div class="fstrip" style="margin-bottom:12px">
