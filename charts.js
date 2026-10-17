@@ -12,8 +12,8 @@
 function canvasChart(id, cfg){
   const el = document.getElementById(id);
   if(!el) return;
-  const baseFont = { family:'Inter, system-ui, sans-serif', size:11, color:'#6a90aa' };
-  const gridColor = 'rgba(26,45,68,.7)';
+  const baseFont = { family:'Inter, system-ui, sans-serif', size:11, color:'#8791a3' };
+  const gridColor = 'rgba(18,23,43,.08)';
   const datasets = cfg.datasets.map(ds => ({
     label: ds.label,
     data: ds.data,
@@ -54,27 +54,29 @@ function canvasChart(id, cfg){
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { display: !!cfg.legend, labels:{ color:'#a8c4dc', font: baseFont, boxWidth:8 } },
+        legend: { display: !!cfg.legend, labels:{ color:'#4c5468', font: baseFont, boxWidth:8 } },
         annotation: { annotations }
       },
       scales: {
-        x: { ticks:{ color:'#6a90aa', font: baseFont, maxTicksLimit:12 }, grid:{ color:gridColor } },
+        x: { ticks:{ color:'#8791a3', font: baseFont, maxTicksLimit:12 }, grid:{ color:gridColor } },
         y: { min: cfg.yMin, max: cfg.yMax, type: cfg.yLog?'logarithmic':'linear',
-             ticks:{ color:'#6a90aa', font: baseFont }, grid:{ color:gridColor } }
+             ticks:{ color:'#8791a3', font: baseFont }, grid:{ color:gridColor } }
       }
     }
   });
 }
 
 /* ------------------------------------------------
-   DOM layout — injects canvas wrappers per mode
+   DOM layout - injects canvas wrappers per mode
    ------------------------------------------------ */
 function setupCharts(){
   Object.values(charts).forEach(c=>c.destroy());
   Object.keys(charts).forEach(k=>delete charts[k]);
   const area = document.getElementById('chartsArea');
   const cv = id => `<div class="chart-inner"><canvas id="${id}"></canvas></div>`;
-  if(mode==='basics'){
+  if(mode==='intro'){
+    area.innerHTML=`<div id="loopDiagram"></div><div class="loop-note" id="loopNote"></div>`;
+  } else if(mode==='basics'){
     area.innerHTML=`
       <div class="chart-grid cols-2">
         <div class="chart-box"><h4>Cumulative Reward vs Episode Steps</h4>${cv('b-reward')}</div>
@@ -84,7 +86,7 @@ function setupCharts(){
     area.innerHTML=`
       <div class="chart-grid cols-2" style="margin-bottom:12px">
         <div class="chart-box"><h4>Q-Values Over Updates</h4>${cv('ql-qvals')}</div>
-        <div class="chart-box"><h4>TD Error (δ) per Step</h4>${cv('ql-delta')}</div>
+        <div class="chart-box"><h4>TD Error (<span style="text-transform:none">δ</span>) per Step</h4>${cv('ql-delta')}</div>
       </div>
       <div class="qtable-wrap" id="qtableWrap">
         <h4>Q-Table: current values</h4>
@@ -103,8 +105,8 @@ function setupCharts(){
         <div class="chart-box"><h4>Max Q per State</h4>${cv('gw-qmax')}</div>
       </div>`;
     canvasChart('gw-rew',{type:'line',labels:[],datasets:[
-      {label:'Episode Reward',data:[],color:'#00e599',width:2,dots:true,fill:'rgba(0,229,153,.07)'}
-    ],refLines:[{value:0,color:'#ffffff22'}]});
+      {label:'Episode Reward',data:[],color:'#157a5e',width:2,dots:true,fill:'rgba(21,122,94,.07)'}
+    ],refLines:[{value:0,color:'rgba(18,23,43,.25)'}]});
   } else {
     area.innerHTML=`
       <div class="chart-grid cols-2" style="margin-bottom:12px">
@@ -124,7 +126,8 @@ function setupCharts(){
 function renderCharts(){
   const s = stepsData[cur];
   if(!s) return;
-  if(mode==='basics') renderBasicsCharts(s);
+  if(mode==='intro') renderIntroScene(s);
+  else if(mode==='basics') renderBasicsCharts(s);
   else if(mode==='qlearning') renderQLCharts(s);
   else if(mode==='gridworld') renderGWCharts(s);
   else renderEpsCharts(s);
@@ -138,12 +141,12 @@ function renderBasicsCharts(s){
   const allRewards = stepsData.map((x,i)=>i<=cur?(x.totalR||0):null);
   const knownRewards = allRewards.filter(v=>v!==null);
   canvasChart('b-reward',{type:'line',labels:allLabels,yMin:Math.min(...knownRewards,0)-1,datasets:[
-    {label:'Cumulative Reward',data:allRewards,color:'#00e599',width:2,dots:true,fill:'rgba(0,229,153,.08)'}
+    {label:'Cumulative Reward',data:allRewards,color:'#157a5e',width:2,dots:true,fill:'rgba(21,122,94,.08)'}
   ]});
   const rews=[0,-0.1,-0.1,-0.1,-0.1,10,0,0];
   const fullRews = allLabels.map(i=>i<=cur?(rews[i]??0):null);
   canvasChart('b-sar',{type:'bar',labels:allLabels.map(i=>'S'+i),yMin:Math.min(...rews)-0.5,datasets:[
-    {data:fullRews,color:fullRews.map(v=>v===null?'transparent':v>0?'rgba(0,229,153,.7)':v<0?'rgba(255,77,106,.6)':'rgba(0,212,255,.4)')}
+    {data:fullRews,color:fullRews.map(v=>v===null?'transparent':v>0?'rgba(21,122,94,.7)':v<0?'rgba(193,56,44,.6)':'rgba(44,75,219,.4)')}
   ]});
 }
 
@@ -153,7 +156,7 @@ function renderBasicsCharts(s){
 function renderQLCharts(s){
   const cfg = s.cfg;
   const allLabels = stepsData.map((_,i)=>i);
-  const colors=['#00d4ff','#00e599','#ffb830','#a855f7','#ff4d6a','#ff7043','#ff6bcb'];
+  const colors=['#2c4bdb','#157a5e','#a8710f','#6338bf','#c1382c','#bb5620','#a3306f'];
 
   const combos=[];
   cfg.states.forEach((st,si)=>{ cfg.actions.forEach((ac,ai)=>{ combos.push({si,ai,label:`Q(${st.split('\n')[0]},${ac})`}); }); });
@@ -166,7 +169,7 @@ function renderQLCharts(s){
 
   const allDeltas = allLabels.map((_,idx)=>idx<=cur?(stepsData[idx].delta||0):null);
   canvasChart('ql-delta',{type:'bar',labels:allLabels,datasets:[
-    {data:allDeltas,color:allDeltas.map(d=>d===null?'transparent':d>0?'rgba(0,229,153,.65)':d<0?'rgba(255,77,106,.65)':'rgba(0,212,255,.4)')}
+    {data:allDeltas,color:allDeltas.map(d=>d===null?'transparent':d>0?'rgba(21,122,94,.65)':d<0?'rgba(193,56,44,.65)':'rgba(44,75,219,.4)')}
   ]});
 
   const tbl = document.getElementById('qtable');
@@ -214,13 +217,13 @@ function renderGWCharts(s){
   const epData = stepsData.slice(1,cur+1).filter(x=>x.isTerminal).map(x=>({ep:x.episode,r:x.totalR}));
   const allEpRewards = allEpLabels.map(ep=>{ const d=epData.find(x=>x.ep===ep); return d!=null?d.r:null; });
   canvasChart('gw-rew',{type:'line',labels:allEpLabels,datasets:[
-    {label:'Episode Reward',data:allEpRewards,color:'#00e599',width:2,dots:true,fill:'rgba(0,229,153,.07)'}
-  ],refLines:[{value:0,color:'#ffffff22'}]});
+    {label:'Episode Reward',data:allEpRewards,color:'#157a5e',width:2,dots:true,fill:'rgba(21,122,94,.07)'}
+  ],refLines:[{value:0,color:'rgba(18,23,43,.25)'}]});
   canvasChart('gw-visits',{type:'bar',labels:stepsData[0]?Array.from({length:s.N*s.N},(_,i)=>'s'+i):[],datasets:[
-    {data:s.visitCounts,color:'rgba(168,85,247,.65)'}
+    {data:s.visitCounts,color:'rgba(99,56,191,.65)'}
   ]});
   canvasChart('gw-qmax',{type:'bar',labels:Array.from({length:s.N*s.N},(_,i)=>'s'+i),datasets:[
-    {data:s.Q.map(row=>Math.max(...row)),color:s.Q.map(row=>Math.max(...row)>5?'rgba(0,229,153,.7)':Math.max(...row)<0?'rgba(255,77,106,.6)':'rgba(0,212,255,.5)')}
+    {data:s.Q.map(row=>Math.max(...row)),color:s.Q.map(row=>Math.max(...row)>5?'rgba(21,122,94,.7)':Math.max(...row)<0?'rgba(193,56,44,.6)':'rgba(44,75,219,.5)')}
   ]});
 }
 
@@ -230,14 +233,14 @@ function renderGWCharts(s){
 function renderEpsCharts(s){
   const trueVals=s.trueValues, labels=s.labels;
   canvasChart('ep-arms',{type:'bar',labels,datasets:[
-    {data:trueVals,color:'rgba(0,212,255,.3)',label:'True Value'},
-    {data:s.Q,color:s.Q.map((_,i)=>i===s.chosen?'rgba(255,184,48,.9)':'rgba(168,85,247,.65)'),label:'Q Estimate'},
+    {data:trueVals,color:'rgba(44,75,219,.3)',label:'True Value'},
+    {data:s.Q,color:s.Q.map((_,i)=>i===s.chosen?'rgba(168,113,15,.9)':'rgba(99,56,191,.65)'),label:'Q Estimate'},
   ],legend:true,yMin:0});
 
   const allStepLabels = stepsData.map((_,i)=>i);
   const allEps = allStepLabels.map((_,idx)=>idx<=cur?(stepsData[idx].epsilon||0):null);
   canvasChart('ep-eps',{type:'line',labels:allStepLabels,datasets:[
-    {data:allEps,color:'#ff7043',width:2,fill:'rgba(255,112,67,.08)',dots:false}
+    {data:allEps,color:'#bb5620',width:2,fill:'rgba(187,86,32,.08)',dots:false}
   ],yMin:0,yMax:1});
 
   const maxCumLen = Math.max(...stepsData.map(x=>(x.cumulativeRs||[]).length));
@@ -245,7 +248,7 @@ function renderEpsCharts(s){
   const curCumRs = s.cumulativeRs||[0];
   const fullCumRs = cumLabels.map((_,i)=>i<curCumRs.length?curCumRs[i]:null);
   canvasChart('ep-cum',{type:'line',labels:cumLabels,datasets:[
-    {data:fullCumRs,color:'#00e599',width:2,fill:'rgba(0,229,153,.08)'}
+    {data:fullCumRs,color:'#157a5e',width:2,fill:'rgba(21,122,94,.08)'}
   ]});
 
   const maxRegLen = Math.max(...stepsData.map(x=>(x.regrets||[]).length));
@@ -253,6 +256,28 @@ function renderEpsCharts(s){
   const curRegs = s.regrets||[0];
   const fullRegs = regLabels.map((_,i)=>i<curRegs.length?curRegs[i]:null);
   canvasChart('ep-reg',{type:'line',labels:regLabels,datasets:[
-    {data:fullRegs,color:'#ff4d6a',width:2,fill:'rgba(255,77,106,.07)'}
+    {data:fullRegs,color:'#c1382c',width:2,fill:'rgba(193,56,44,.07)'}
   ]});
+}
+
+/* ------------------------------------------------
+   Intro: agent <-> environment loop diagram.
+   Highlights the part being explained this step.
+   ------------------------------------------------ */
+function renderIntroScene(s){
+  const el=document.getElementById('loopDiagram'); if(!el||!s.ex) return;
+  const f=s.focus||'none', all=(f==='loop');
+  const on=k=>(all||f===k)?' on':'';
+  const ex=s.ex;
+  el.className='loop';
+  el.innerHTML=`
+    <div class="loop-node${on('agent')}"><div class="ln-ico">${ex.aI}</div><b>Agent</b><span class="sub">${ex.agent}</span></div>
+    <div class="loop-arrows">
+      <div class="loop-arrow act${on('action')}">Action → <em>${ex.action}</em></div>
+      <div class="loop-arrow st${on('state')}">← State: <em>${ex.state}</em></div>
+      <div class="loop-arrow rw${on('reward')}">← Reward: <em>${ex.reward}</em></div>
+    </div>
+    <div class="loop-node env${on('env')}"><div class="ln-ico">${ex.eI}</div><b>Environment</b><span class="sub">${ex.env}</span></div>`;
+  const note=document.getElementById('loopNote');
+  if(note) note.textContent=ex.note;
 }

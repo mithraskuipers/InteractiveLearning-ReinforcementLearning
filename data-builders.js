@@ -1,10 +1,10 @@
 /* ================================================
    DATA BUILDERS
-   Pure functions — no DOM access. Each returns an
+   Pure functions - no DOM access. Each returns an
    array of step objects consumed by the UI layer.
    ================================================ */
 
-/* Seeded RNG (Mulberry32-lite) — deterministic replays */
+/* Seeded RNG (Mulberry32-lite) - deterministic replays */
 function rng(seed){ let s=seed%2147483647; if(s<=0)s+=2147483646; return ()=>{ s=s*16807%2147483647; return (s-1)/2147483646; }; }
 
 /* ------------------------------------------------
@@ -16,18 +16,18 @@ function buildBasics(sc){
       name: 'Robot Navigation',
       steps: [
         { title:'The RL Framework', formula:'Agent → Action → Environment → (State, Reward) → Agent',
-          explain:'Reinforcement Learning is about an <strong>agent</strong> learning to act in an <strong>environment</strong> to maximize cumulative <strong>reward</strong>. Unlike supervised learning, there are no labels — the agent discovers what works through trial and error.',
+          explain:'Reinforcement Learning is about an <strong>agent</strong> learning to act in an <strong>environment</strong> to maximize cumulative <strong>reward</strong>. Unlike supervised learning, there are no labels - the agent discovers what works through trial and error.',
           chips:[['State','s₀ = Start Room','c-s'],['Action','','c-a'],['Reward','','c-r'],['Return','','c-q']],
           ep:0, step:0, totalR:0, action:'', reward:'', nextState:'' },
-        { title:'State: Where Am I?', formula:'State s ∈ S — full description of environment',
+        { title:'State: Where Am I?', formula:'State s ∈ S - full description of environment',
           explain:'The <strong>state</strong> captures everything the agent needs to know to make a decision. For our robot: current room number. State s₀ = Room 0 (Start).',
           chips:[['State','Room 0','c-s'],['Actions','↑↓←→','c-a'],['Reward','','c-r'],['Total R','0','c-r']],
           ep:0, step:0, totalR:0, action:'', reward:'', nextState:'' },
-        { title:'Action: What Do I Do?', formula:'Action a ∈ A(s) — chosen from the policy π(s)',
+        { title:'Action: What Do I Do?', formula:'Action a ∈ A(s) - chosen from the policy π(s)',
           explain:'The agent picks action <strong>a = "move right"</strong> based on its current policy. Early on the policy is random (exploration). Over time it improves.',
           chips:[['State','Room 0','c-s'],['Action','→ Right','c-a'],['Reward','','c-r'],['Total R','0','c-r']],
           ep:0, step:1, totalR:0, action:'→ Right', reward:'', nextState:'' },
-        { title:'Reward: Feedback Signal', formula:'Reward r = R(s,a,s\') — scalar feedback from environment',
+        { title:'Reward: Feedback Signal', formula:'Reward r = R(s,a,s\') - scalar feedback from environment',
           explain:'After taking action "right", the robot moves to <strong>Room 1</strong> and receives a small reward <strong>r = −0.1</strong> (step cost). The environment says: "you moved, but haven\'t reached the goal yet."',
           chips:[['State','Room 1','c-s'],['Action','→ Right','c-a'],['Reward','−0.1','c-r'],['Total R','−0.1','c-r']],
           ep:0, step:2, totalR:-0.1, action:'→ Right', reward:'-0.1', nextState:'Room 1' },
@@ -35,7 +35,7 @@ function buildBasics(sc){
           explain:'The robot keeps exploring. Another right → Room 2 (r=−0.1). Then up → Room 3 (r=−0.1). The <strong>episode</strong> is a full sequence from start to terminal state.',
           chips:[['State','Room 3','c-s'],['Action','↑ Up','c-a'],['Reward','−0.1','c-r'],['Total R','−0.3','c-r']],
           ep:0, step:4, totalR:-0.3, action:'↑ Up', reward:'-0.1', nextState:'Room 3' },
-        { title:'Goal Reached — Reward!', formula:'Terminal state: r_goal = +10.0 (sparse reward)',
+        { title:'Goal Reached - Reward!', formula:'Terminal state: r_goal = +10.0 (sparse reward)',
           explain:'The robot reaches the <strong>Goal Room</strong> and receives a large positive reward <strong>r = +10</strong>. Total episode return = <strong>+9.7</strong>. This positive signal tells the agent this path was good!',
           chips:[['State','GOAL','c-q'],['Action','→ Right','c-a'],['Reward','+10','c-r'],['Total R','9.7','c-r']],
           ep:0, step:5, totalR:9.7, action:'→ Right', reward:'+10.0', nextState:'GOAL' },
@@ -43,7 +43,7 @@ function buildBasics(sc){
           explain:'The <strong>return G</strong> sums all future rewards, discounted by γ (here γ=0.9). Reward now is worth more than reward later. This is how agents plan ahead rather than just greedily taking the immediate reward.',
           chips:[['γ','0.9','c-q'],['r₁','−0.1','c-r'],['r₅','+10','c-r'],['G₀','≈9.7','c-q']],
           ep:0, step:5, totalR:9.7, action:'', reward:'', nextState:'' },
-        { title:'Policy: The Agent\'s Brain', formula:'π(a|s) — prob of action a in state s. Optimal: π*(s) = argmax_a Q*(s,a)',
+        { title:'Policy: The Agent\'s Brain', formula:'π(a|s) - prob of action a in state s. Optimal: π*(s) = argmax_a Q*(s,a)',
           explain:'The <strong>policy π</strong> maps states to actions. A random policy explores everywhere. An optimal policy always picks the action with the highest expected return. Q-Learning learns this optimal policy automatically!',
           chips:[['Policy','π*(s)','c-q'],['Value','V*(s)','c-q'],['Q-Value','Q*(s,a)','c-q'],['Bellman','✓','c-s']],
           ep:0, step:5, totalR:9.7, action:'', reward:'', nextState:'' },
@@ -61,7 +61,7 @@ function buildBasics(sc){
           chips:[['Player','(3,5)','c-s'],['Enemy','(7,5)','c-s'],['Health','100','c-s'],['Score','0','c-r']],
           ep:0, step:0, totalR:0, action:'', reward:'', nextState:'' },
         { title:'Action: Shoot!', formula:'A = {left, right, up, down, shoot, jump}',
-          explain:'The agent picks <strong>Shoot</strong>. The enemy is at distance 4 — bullet fired! Action space is discrete here (6 possible actions). In continuous control (robotics) actions can be real-valued.',
+          explain:'The agent picks <strong>Shoot</strong>. The enemy is at distance 4 - bullet fired! Action space is discrete here (6 possible actions). In continuous control (robotics) actions can be real-valued.',
           chips:[['State','[3,5,7,5,100]','c-s'],['Action','SHOOT','c-a'],['Reward','','c-r'],['Score','0','c-r']],
           ep:0, step:1, totalR:0, action:'SHOOT', reward:'', nextState:'' },
         { title:'Hit! Reward +10', formula:'r = +10 (enemy eliminated)',
@@ -69,11 +69,11 @@ function buildBasics(sc){
           chips:[['State','[3,5,*,*,100]','c-s'],['Action','SHOOT','c-a'],['Reward','+10','c-r'],['Score','10','c-r']],
           ep:0, step:2, totalR:10, action:'SHOOT', reward:'+10', nextState:'enemy gone' },
         { title:'Step Penalty', formula:'r = −0.01 per step (encourages efficiency)',
-          explain:'Each step without progress costs −0.01. This <strong>step penalty</strong> teaches the agent to be efficient — reach goals quickly, don\'t wander. Without it, agents often learn to stall.',
+          explain:'Each step without progress costs −0.01. This <strong>step penalty</strong> teaches the agent to be efficient - reach goals quickly, don\'t wander. Without it, agents often learn to stall.',
           chips:[['Steps','3','c-a'],['Step Cost','−0.01','c-red'],['Net Reward','+9.97','c-r'],['Efficiency','Goal!','c-q']],
           ep:1, step:3, totalR:9.97, action:'→ Move', reward:'-0.01', nextState:'' },
         { title:'Death Penalty', formula:'r = −100 (terminal, negative reward)',
-          explain:'If the agent takes damage and dies: <strong>r = −100</strong>. Strong negative rewards signal catastrophic outcomes. The agent quickly learns to avoid these states — negative reinforcement.',
+          explain:'If the agent takes damage and dies: <strong>r = −100</strong>. Strong negative rewards signal catastrophic outcomes. The agent quickly learns to avoid these states - negative reinforcement.',
           chips:[['Health','0','c-red'],['Reward','−100','c-red'],['Episode','Ended','c-red'],['Lesson','Avoid death!','c-q']],
           ep:1, step:4, totalR:-90, action:'→ Walk into enemy', reward:'-100', nextState:'DEAD' },
         { title:'Learning Across Episodes', formula:'Policy improves: E[G] ↑ as episodes → ∞',
@@ -110,7 +110,7 @@ function buildBasics(sc){
           chips:[['Drawdown','−$5.00','c-red'],['Risk Pen.','−$1.00','c-red'],['Net Ep.','−$0.20','c-red'],['Lesson','Manage risk!','c-q']],
           ep:3, step:0, totalR:-0.20, action:'HOLD', reward:'−$1.00 pen.', nextState:'' },
         { title:'Policy Converges', formula:'Optimal π*: buy dips, sell strength, limit drawdown',
-          explain:'After 200+ episodes the agent develops a real strategy: buys when RSI < 40 (oversold), sells when RSI > 70, limits position size to control drawdown. The policy emerged purely from reward signals — no human rules!',
+          explain:'After 200+ episodes the agent develops a real strategy: buys when RSI < 40 (oversold), sells when RSI > 70, limits position size to control drawdown. The policy emerged purely from reward signals - no human rules!',
           chips:[['Strategy','RSI-based','c-q'],['Win Rate','58%','c-r'],['Avg Ep.','+$3.20','c-r'],['Sharpe','1.42','c-q']],
           ep:200, step:0, totalR:640, action:'', reward:'', nextState:'' },
       ]
@@ -150,8 +150,8 @@ function buildQLearning(sc, alpha, gamma){
 
   steps.push({
     title: 'Q-Table Initialized',
-    formula: 'Q(s,a) = 0 for all s,a — start with no knowledge',
-    explain: `<strong>Q-Learning</strong> maintains a table Q[state][action] = expected future reward. We initialize all values to 0 — the agent starts completely ignorant. States: ${cfg.states.join(', ')}. Actions: ${cfg.actions.join(', ')}.`,
+    formula: 'Q(s,a) = 0 for all s,a - start with no knowledge',
+    explain: `<strong>Q-Learning</strong> maintains a table Q[state][action] = expected future reward. We initialize all values to 0 - the agent starts completely ignorant. States: ${cfg.states.join(', ')}. Actions: ${cfg.actions.join(', ')}.`,
     Q: Q.map(r=>[...r]), s:-1, a:-1, r:0, ns:-1, delta:0, episode:1, epStep:0, totalR:0, isTerminal:false, isTrap:false,
     chips:[['α (alpha)', alpha.toFixed(1),'c-a'],['γ (gamma)',gamma.toFixed(1),'c-q'],['ε','1.0 (explore)','c-e'],['States',cfg.states.length,'c-s']],
     cfg
@@ -230,7 +230,7 @@ function buildGridWorld(size, episodes){
   }
 
   steps.push({
-    title:'Grid World — Initial State',
+    title:'Grid World - Initial State',
     explain:`A <strong>${N}×${N} grid world</strong>. Agent starts top-left (S0). Goal: reach bottom-right 🏆 (+10). Traps: ⚠️ cells (−5). Walls: ⛔ blocked. The agent learns optimal path via Q-Learning.`,
     formula:`Grid: ${N}×${N} = ${N*N} states. Actions: ↑↓←→. R(goal) = +10, R(trap) = −5, R(step) = −0.1`,
     Q: Q.map(r=>[...r]), agentState:0, visitCounts:[...visitCounts],
@@ -349,7 +349,7 @@ function buildEpsilon(sc, epStart, epDecay){
         title: isExplore ? `Step ${t}: 🎲 EXPLORE (ε=${epsilon.toFixed(2)})` : `Step ${t}: 🎯 EXPLOIT (ε=${epsilon.toFixed(2)})`,
         explain: isExplore
           ? `Random exploration! Tried <strong>${cfg.labels[arm]}</strong>, got reward <span class="gd">${r}</span>. Q estimate updated to <span class="ac">${Q_arms[arm]}</span>. Exploring gives us information about arms we haven't tried much.`
-          : `Exploiting best known arm: <strong>${cfg.labels[arm]}</strong> (Q=${Q_arms[arm]}). Got reward <span class="gn">${r}</span>. Cumulative reward = <span class="gn">${cumR.toFixed(2)}</span>. ${arm===3?'🏆 Optimal arm selected!':'Suboptimal arm — still learning...'}`,
+          : `Exploiting best known arm: <strong>${cfg.labels[arm]}</strong> (Q=${Q_arms[arm]}). Got reward <span class="gn">${r}</span>. Cumulative reward = <span class="gn">${cumR.toFixed(2)}</span>. ${arm===3?'🏆 Optimal arm selected!':'Suboptimal arm - still learning...'}`,
         formula: `Q(arm${arm}) ← Q(arm${arm}) + (${r} − Q(arm${arm})) / ${counts[arm]} = ${Q_arms[arm]}`,
         epsilon:+epsilon.toFixed(3), Q:[...Q_arms], counts:[...counts], t,
         chosen:arm, reward:r, isExplore, cumulativeR:+cumR.toFixed(2),
@@ -375,7 +375,7 @@ function buildEpsilon(sc, epStart, epDecay){
    Training (above) produces a learned Q-table. These
    functions take that final Q-table and greedily
    replay the learned policy against a lightweight
-   environment model — i.e. "run the trained model"
+   environment model - i.e. "run the trained model"
    with exploration switched off. Pure functions,
    deterministic, capped step counts (no infinite loops).
    ------------------------------------------------ */
@@ -444,7 +444,7 @@ function rolloutGridWorld(N, trapStates, wallStates, goalState, Q){
     if(!moves.length) break;
     let best=-Infinity;
     for(const m of moves) if(Q[s][m.action]>best) best=Q[s][m.action];
-    // Ties happen often on sparsely-visited cells — among equally-good
+    // Ties happen often on sparsely-visited cells - among equally-good
     // actions, prefer the one that moves closer to the goal.
     const tied = moves.filter(m=>Math.abs(Q[s][m.action]-best)<1e-6);
     tied.sort((a,b)=>distToGoal(a.ns)-distToGoal(b.ns));
@@ -457,13 +457,13 @@ function rolloutGridWorld(N, trapStates, wallStates, goalState, Q){
     frames.push({ s, a:action, sym, ns, r, totalR:+totalR.toFixed(2), isGoal, isTrap });
     s = ns;
     if(isGoal||isTrap) break;
-    if(seen.has(s)) break; // stuck in a loop — stop the replay
+    if(seen.has(s)) break; // stuck in a loop - stop the replay
     seen.add(s);
   }
   return frames;
 }
 
-/* Greedily replay the learned bandit policy — always pull the best-known arm */
+/* Greedily replay the learned bandit policy - always pull the best-known arm */
 function rolloutBandit(trueValues, Q, pulls=12){
   const rng_ = rng(99);
   const bestArm = Q.indexOf(Math.max(...Q));
@@ -475,4 +475,71 @@ function rolloutBandit(trueValues, Q, pulls=12){
     frames.push({ t, arm:bestArm, r, cumR:+cumR.toFixed(2) });
   }
   return frames;
+}
+
+
+/* ------------------------------------------------
+   INTRO - the big picture: agent, environment,
+   state, action, reward, and the goal. Concept-only
+   (no simulation), told through one concrete example.
+   ------------------------------------------------ */
+function buildIntro(sc){
+  const EX={
+    robot:{agent:'Delivery robot',env:'A warehouse corridor',aI:'🤖',eI:'🏭',state:'In cell 2 of 5',action:'Move right',reward:'-0.1',
+      note:'Every step costs a little battery (-0.1), reaching the package pays +10. Short routes score best.'},
+    game:{agent:'Game character',env:'A game level',aI:'🎮',eI:'🕹️',state:'Enemy 3 tiles ahead',action:'Jump',reward:'+1',
+      note:'Dodging an enemy earns +1, getting hit costs -5. The character learns when to jump.'},
+    trader:{agent:'Trading bot',env:'The market',aI:'📈',eI:'🏦',state:'Price rising 2 days',action:'Buy',reward:'+0.5',
+      note:'Profit is the reward, loss is negative reward. The bot learns when buying tends to pay off.'}
+  };
+  const ex=EX[sc]||EX.robot;
+  const steps=[];
+  const push=(title,formula,explain,chips,focus)=>steps.push({title,formula,explain,chips,focus,ex});
+
+  push('What is Reinforcement Learning?',
+    `<span class="ac">act</span> → <span class="gn">get feedback</span> → <span class="pu">do better next time</span>`,
+    `Think of teaching a dog a trick. You never explain the trick. The dog tries things, gets a treat when something works, and slowly repeats what earns treats. <b>Reinforcement Learning (RL)</b> teaches software the same way: no answer key, only trial, feedback and improvement. Here, a <b>${ex.agent.toLowerCase()}</b> learns inside <b>${ex.env.toLowerCase()}</b>.`,
+    [['Learns from','trial and error','c-s'],['Teacher','none, only a score','c-r']],'none');
+
+  push('The Agent',
+    `<span class="ac">agent</span> = the learner that makes choices`,
+    `The <b>agent</b> is the decision maker, the thing that is learning. In this example it is the ${ex.agent.toLowerCase()}. It does not start out knowing anything useful about its world.`,
+    [['Agent',ex.agent,'c-s']],'agent');
+
+  push('The Environment',
+    `<span class="pu">environment</span> = everything the agent interacts with`,
+    `The <b>environment</b> is the world the agent lives in: ${ex.env.toLowerCase()}. It reacts to what the agent does and answers with feedback. The agent cannot change its rules, it can only act and observe.`,
+    [['Environment',ex.env,'c-q']],'env');
+
+  push('State (s)',
+    `<span class="ac">s</span> = what the agent sees right now`,
+    `A <b>state</b> is a snapshot of the situation. Right now the state is: <b>${ex.state}</b>. A good state description holds what the agent needs to decide well, nothing more.`,
+    [['Current state',ex.state,'c-s']],'state');
+
+  push('Action (a)',
+    `<span class="gd">a</span> = a choice the agent can make`,
+    `An <b>action</b> is one of the options available in a state. Here the agent picks: <b>${ex.action}</b>. Early on its choices are mostly guesses, learning is about making them better.`,
+    [['Chosen action',ex.action,'c-a']],'action');
+
+  push('Reward (r)',
+    `<span class="gn">r</span> = a score for what just happened`,
+    `The <b>reward</b> is a single number from the environment: positive means good, negative means bad. This turn it is <b>${ex.reward}</b>. Rewards are the only guidance the agent ever gets. ${ex.note}`,
+    [['Reward',ex.reward,'c-r']],'reward');
+
+  push('One Full Turn',
+    `<span class="ac">s</span> → <span class="gd">a</span> → <span class="gn">r</span>, <span class="ac">s'</span>`,
+    `Put it together: the agent sees a state, picks an action, the environment replies with a reward and a new state <b>s'</b>, and the cycle repeats. One run from start to finish is called an <b>episode</b>.`,
+    [['Cycle','state, action, reward','c-e']],'loop');
+
+  push('The Goal: Maximize Total Reward',
+    `G = r₁ + <span class="pu">γ</span>·r₂ + <span class="pu">γ</span>²·r₃ + …`,
+    `One reward is short-sighted. The agent wants the biggest <b>total</b> over time, even if that means accepting a small cost now for a big payoff later. The <b>discount γ</b> (a number from 0 to 1) shrinks far-away rewards, so sooner counts a bit more than later.`,
+    [['Goal','maximize total reward','c-r'],['γ','between 0 and 1','c-q']],'loop');
+
+  push('Your Path From Here',
+    `Basics → Q-Learning → Grid World → Exploration`,
+    `Next you will <b>watch</b> one episode (RL Basics), see how the agent <b>remembers</b> what works with a Q-table (Q-Learning), watch it <b>learn a whole map</b> (Grid World), and finally see how it decides between <b>trying new things and repeating what works</b> (Exploration). Stuck on a word? Open the glossary on the left.`,
+    [['Next stop','RL Basics','c-s']],'loop');
+
+  return steps;
 }

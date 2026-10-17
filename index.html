@@ -7,13 +7,33 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<div class="topbar">
 <header>
+  <div class="eyebrow">Interactive AI Explainer</div>
   <h1>Reinforcement <em>Learning</em></h1>
-  <p class="subtitle">Four interactive examples covering the core ideas of RL and Q-Learning. All computation runs in your browser: no server, no internet, no loading.</p>
+  <p class="subtitle">Five interactive stops that teach how a program can learn by trial and error, from the basic idea of rewards to Q-Learning and smart exploration. No background needed: every stop explains its own terms, and everything runs in your browser. <b>Work through them in order</b>, pressing <b>Next</b> to move one small step at a time.</p>
 </header>
+</div>
+
+<!-- Page navigation bar: jump between the stops -->
+<!-- One navigation bar: numbered in the recommended learning order -->
+<nav class="tabbar" aria-label="Learning stops">
+  <div class="tabbar-inner">
+    <div class="tabs">
+      <button class="tab-btn active" data-mode="intro" onclick="switchMode('intro')"><span class="tab-num">1</span>🌟 Big Picture</button>
+      <button class="tab-btn" data-mode="basics" onclick="switchMode('basics')"><span class="tab-num">2</span>🧠 RL Basics</button>
+      <button class="tab-btn" data-mode="qlearning" onclick="switchMode('qlearning')"><span class="tab-num">3</span>⚡ Q-Learning</button>
+      <button class="tab-btn" data-mode="gridworld" onclick="switchMode('gridworld')"><span class="tab-num">4</span>🗺️ Grid World</button>
+      <button class="tab-btn" data-mode="epsilon" onclick="switchMode('epsilon')"><span class="tab-num">5</span>🎲 Exploration</button>
+    </div>
+    <span class="kbd-hint"><kbd>,</kbd> Prev &nbsp;<kbd>.</kbd> Next &nbsp;<kbd>Space</kbd> Play</span>
+  </div>
+  <div class="tabbar-desc" id="tabDesc"></div>
+</nav>
+
 <div class="main">
 
-  <!-- Formula strip -->
+  <!-- Global formula strip: the one equation the whole module builds toward -->
   <div class="fstrip">
     <div class="fmain" id="globalFormula">
       <span class="ac">Q(s,a)</span> ← <span class="gd">Q(s,a)</span> + α[<span class="gn">r</span> + γ·max<sub>a'</sub><span class="pu">Q(s',a')</span> − <span class="gd">Q(s,a)</span>]
@@ -27,116 +47,159 @@
     </div>
   </div>
 
-  <!-- Tabs -->
-  <div class="tabs">
-    <button class="tab-btn active" onclick="switchMode('basics')">🧠 RL Basics</button>
-    <button class="tab-btn" onclick="switchMode('qlearning')">⚡ Q-Learning</button>
-    <button class="tab-btn" onclick="switchMode('gridworld')">🗺️ Grid World</button>
-    <button class="tab-btn" onclick="switchMode('epsilon')">🎲 Exploration</button>
-    <span class="kbd-hint"><kbd>,</kbd> Prev &nbsp;<kbd>.</kbd> Next &nbsp;<kbd>Space</kbd> Play</span>
-  </div>
+  <!-- Two-column workspace: theory (left) / visualization (right) -->
+  <div class="layout">
 
-  <!-- Scenario controls -->
-  <div class="sc active" id="sc-basics">
-    <div class="sc-row">
-      <div class="sc-item"><label>Scenario</label>
-        <select id="basics-sc" onchange="resetAll()">
-          <option value="robot">🤖 Robot Navigation</option>
-          <option value="game">🎮 Game Agent</option>
-          <option value="trader">📈 Trading Agent</option>
-        </select>
+    <!-- ============== LEFT: THEORY ============== -->
+    <aside class="theory-col">
+
+      <div class="step-header">
+        <div class="step-badge" id="stepBadge">Step 0</div>
+        <div class="step-title" id="stepTitle">Introduction</div>
+        <div class="dots" id="dotsWrap"></div>
       </div>
-    </div>
-  </div>
 
-  <div class="sc" id="sc-qlearning">
-    <div class="sc-row">
-      <div class="sc-item"><label>Learning Rate α</label>
-        <div style="display:flex;align-items:center;gap:6px"><input type="range" id="ql-alpha" min="1" max="9" value="5" oninput="sv('ql-av',this.value*0.1|0||0.1+(this.value*0.1-Math.floor(this.value*0.1)).toFixed(1).slice(1))"><span class="sc-val" id="ql-av">0.5</span></div></div>
-      <div class="sc-item"><label>Discount γ</label>
-        <div style="display:flex;align-items:center;gap:6px"><input type="range" id="ql-gamma" min="1" max="9" value="8" oninput="sv('ql-gv',(this.value/10).toFixed(1))"><span class="sc-val" id="ql-gv">0.8</span></div></div>
-      <div class="sc-item"><label>Scenario</label>
-        <select id="ql-sc" onchange="resetAll()">
-          <option value="simple">3-State Chain</option>
-          <option value="maze">4-State Maze</option>
-          <option value="cliff">Cliff Walk</option>
-        </select>
+      <div class="controls">
+        <button class="btn" id="btnPrev" onclick="prevStep()" disabled>◀ Prev</button>
+        <button class="btn primary" id="btnPlay" onclick="togglePlay()">▶ Play</button>
+        <button class="btn" id="btnNext" onclick="nextStep()">Next ▶</button>
+        <button class="btn danger" onclick="resetAll()">↺ Reset</button>
+        <button class="btn success" id="btnTrained" onclick="playTrainedAgent()" disabled title="Available for Q-Learning, Grid World, and Exploration">🏁 Play Trained Agent</button>
       </div>
-      <button class="btn primary" onclick="resetAll()">Apply</button>
-    </div>
-  </div>
 
-  <div class="sc" id="sc-gridworld">
-    <div class="sc-row">
-      <div class="sc-item"><label>Grid Size</label>
-        <select id="gw-size" onchange="resetAll()">
-          <option value="3">3×3</option>
-          <option value="4" selected>4×4</option>
-          <option value="5">5×5</option>
-        </select>
+      <div class="fstrip" style="margin-bottom:12px">
+        <div class="fmain" id="formulaLine"></div>
       </div>
-      <div class="sc-item"><label>Episodes</label>
-        <div style="display:flex;align-items:center;gap:6px"><input type="range" id="gw-ep" min="5" max="30" value="15" oninput="sv('gw-epv',this.value)"><span class="sc-val" id="gw-epv">15</span></div></div>
-      <button class="btn primary" onclick="resetAll()">Apply</button>
-    </div>
-  </div>
 
-  <div class="sc" id="sc-epsilon">
-    <div class="sc-row">
-      <div class="sc-item"><label>ε Start</label>
-        <div style="display:flex;align-items:center;gap:6px"><input type="range" id="ep-start" min="5" max="10" value="10" oninput="sv('ep-sv',(this.value/10).toFixed(1))"><span class="sc-val" id="ep-sv">1.0</span></div></div>
-      <div class="sc-item"><label>ε Decay</label>
-        <div style="display:flex;align-items:center;gap:6px"><input type="range" id="ep-decay" min="80" max="99" value="92" oninput="sv('ep-dv',(this.value/100).toFixed(2))"><span class="sc-val" id="ep-dv">0.92</span></div></div>
-      <div class="sc-item"><label>Scenario</label>
-        <select id="ep-sc" onchange="resetAll()">
-          <option value="bandit">5-Arm Bandit</option>
-          <option value="maze">Maze Explorer</option>
-        </select>
+      <div class="explain-card" id="explainCard" aria-live="polite">Loading...</div>
+
+      <div class="chips" id="chipsRow"></div>
+
+      <div class="table-wrap">
+        <div class="table-head-bar"><span>Step History</span><span id="tableLabel"></span></div>
+        <div class="table-scroll-wrap">
+          <table><thead id="tHead"></thead><tbody id="tBody"></tbody></table>
+        </div>
       </div>
-      <button class="btn primary" onclick="resetAll()">Apply</button>
-    </div>
-  </div>
 
-  <!-- Step header -->
-  <div class="step-header">
-    <div class="step-badge" id="stepBadge">Step 0</div>
-    <div class="step-title" id="stepTitle">Introduction</div>
-    <div class="dots" id="dotsWrap"></div>
-  </div>
+      <!-- Shown once the walkthrough for this stop is finished -->
+      <div class="next-cta" id="nextCta" style="display:none">
+        <div class="next-cta-text">✓ <b id="nextCtaDone"></b> complete</div>
+        <button class="btn primary" id="nextCtaBtn" onclick="goToNextMode()"></button>
+      </div>
 
-  <!-- Controls -->
-  <div class="controls">
-    <button class="btn" id="btnPrev" onclick="prevStep()" disabled>◀ Prev</button>
-    <button class="btn primary" id="btnPlay" onclick="togglePlay()">▶ Play</button>
-    <button class="btn" id="btnNext" onclick="nextStep()">Next ▶</button>
-    <button class="btn danger" onclick="resetAll()">↺ Reset</button>
-    <button class="btn success" id="btnTrained" onclick="playTrainedAgent()" disabled title="Available for Q-Learning, Grid World, and Exploration demos">🏁 Play Trained Agent</button>
-  </div>
+      <!-- Plain-English glossary for newcomers -->
+      <details class="glossary">
+        <summary>📖 New to RL? Plain-English glossary</summary>
+        <dl>
+          <dt>Agent</dt><dd>The learner that makes choices.</dd>
+          <dt>Environment</dt><dd>Everything the agent interacts with. It reacts to actions.</dd>
+          <dt>State (s)</dt><dd>What the agent sees right now.</dd>
+          <dt>Action (a)</dt><dd>A choice the agent can make in a state.</dd>
+          <dt>Reward (r)</dt><dd>A score after an action. Positive is good, negative is bad.</dd>
+          <dt>Policy</dt><dd>The agent's strategy: which action to take in which state.</dd>
+          <dt>Episode</dt><dd>One full attempt, from start to finish.</dd>
+          <dt>Q(s,a)</dt><dd>How good action a is in state s, measured in expected total reward.</dd>
+          <dt>α</dt><dd>Learning rate: how much one new experience changes an old estimate.</dd>
+          <dt>γ</dt><dd>Discount: how much future rewards count compared with immediate ones.</dd>
+          <dt>ε</dt><dd>Exploration: the chance of trying a random action instead of the best known one.</dd>
+          <dt>TD error δ</dt><dd>The surprise: what actually happened minus what the agent expected.</dd>
+          <dt>Regret</dt><dd>Reward lost by not always choosing the best option.</dd>
+        </dl>
+      </details>
 
-  <!-- Trained agent playback (greedy rollout of the learned policy) -->
-  <div class="trained-panel" id="trainedPanel"></div>
+    </aside>
 
-  <!-- Formula card -->
-  <div class="fstrip" style="margin-bottom:12px">
-    <div class="fmain" id="formulaLine"></div>
-  </div>
+    <!-- ============== RIGHT: VISUALIZATION ============== -->
+    <section class="viz-col">
 
-  <!-- Explain card -->
-  <div class="explain-card" id="explainCard">Loading...</div>
+      <!-- Scenario controls (mode-specific inputs) -->
+      <div class="sc active" id="sc-intro">
+        <div class="sc-row">
+          <div class="sc-item"><label>Example story</label>
+            <select id="intro-sc" onchange="resetAll()">
+              <option value="robot">🤖 Delivery Robot</option>
+              <option value="game">🎮 Game Character</option>
+              <option value="trader">📈 Trading Bot</option>
+            </select>
+          </div>
+        </div>
+        <div class="sc-hint">Pick a story. The ideas are identical, only the example changes. Press <b>Next</b> to walk through each part of the loop.</div>
+      </div>
 
-  <!-- Chips -->
-  <div class="chips" id="chipsRow"></div>
+      <div class="sc" id="sc-basics">
+        <div class="sc-row">
+          <div class="sc-item"><label>Scenario</label>
+            <select id="basics-sc" onchange="resetAll()">
+              <option value="robot">🤖 Robot Navigation</option>
+              <option value="game">🎮 Game Agent</option>
+              <option value="trader">📈 Trading Agent</option>
+            </select>
+          </div>
+        </div>
+        <div class="sc-hint">Watch one episode: the agent acts, collects rewards, and the running total (left chart) tells you how well it did.</div>
+      </div>
 
-  <!-- Charts area (injected per mode) -->
-  <div id="chartsArea"></div>
+      <div class="sc" id="sc-qlearning">
+        <div class="sc-row">
+          <div class="sc-item"><label>Learning Rate <span style="text-transform:none">α</span></label>
+            <div style="display:flex;align-items:center;gap:6px"><input type="range" id="ql-alpha" min="1" max="9" value="5" oninput="sv('ql-av',(this.value/10).toFixed(1))"><span class="sc-val" id="ql-av">0.5</span></div></div>
+          <div class="sc-item"><label>Discount <span style="text-transform:none">γ</span></label>
+            <div style="display:flex;align-items:center;gap:6px"><input type="range" id="ql-gamma" min="1" max="9" value="8" oninput="sv('ql-gv',(this.value/10).toFixed(1))"><span class="sc-val" id="ql-gv">0.8</span></div></div>
+          <div class="sc-item"><label>Scenario</label>
+            <select id="ql-sc" onchange="resetAll()">
+              <option value="simple">3-State Chain</option>
+              <option value="maze">4-State Maze</option>
+              <option value="cliff">Cliff Walk</option>
+            </select>
+          </div>
+          <button class="btn primary" onclick="resetAll()">Apply</button>
+        </div>
+        <div class="sc-hint">Try it: a high α learns fast but jumps around, a low α learns slowly but steadily. A high γ makes the agent patient about future rewards. Press <b>Apply</b> after changing sliders.</div>
+      </div>
 
-  <!-- Step history table -->
-  <div class="table-wrap">
-    <div class="table-head-bar"><span>Step History</span><span id="tableLabel"></span></div>
-    <div class="table-scroll-wrap">
-      <table><thead id="tHead"></thead><tbody id="tBody"></tbody></table>
-    </div>
-  </div>
+      <div class="sc" id="sc-gridworld">
+        <div class="sc-row">
+          <div class="sc-item"><label>Grid Size</label>
+            <select id="gw-size" onchange="resetAll()">
+              <option value="3">3×3</option>
+              <option value="4" selected>4×4</option>
+              <option value="5">5×5</option>
+            </select>
+          </div>
+          <div class="sc-item"><label>Episodes</label>
+            <div style="display:flex;align-items:center;gap:6px"><input type="range" id="gw-ep" min="5" max="30" value="15" oninput="sv('gw-epv',this.value)"><span class="sc-val" id="gw-epv">15</span></div></div>
+          <button class="btn primary" onclick="resetAll()">Apply</button>
+        </div>
+        <div class="sc-hint">🤖 agent, 🏆 goal, ⚠️ trap, ⛔ wall. The small number in each cell is the best Q-value the agent has learned there. More episodes means more practice.</div>
+      </div>
+
+      <div class="sc" id="sc-epsilon">
+        <div class="sc-row">
+          <div class="sc-item"><label><span style="text-transform:none">ε</span> Start</label>
+            <div style="display:flex;align-items:center;gap:6px"><input type="range" id="ep-start" min="5" max="10" value="10" oninput="sv('ep-sv',(this.value/10).toFixed(1))"><span class="sc-val" id="ep-sv">1.0</span></div></div>
+          <div class="sc-item"><label><span style="text-transform:none">ε</span> Decay</label>
+            <div style="display:flex;align-items:center;gap:6px"><input type="range" id="ep-decay" min="80" max="99" value="92" oninput="sv('ep-dv',(this.value/100).toFixed(2))"><span class="sc-val" id="ep-dv">0.92</span></div></div>
+          <div class="sc-item"><label>Scenario</label>
+            <select id="ep-sc" onchange="resetAll()">
+              <option value="bandit">5-Arm Bandit</option>
+              <option value="maze">Maze Explorer</option>
+            </select>
+          </div>
+          <button class="btn primary" onclick="resetAll()">Apply</button>
+        </div>
+        <div class="sc-hint">ε is the chance of trying something random. Starting high explores a lot, and a lower decay value makes the agent settle on its favorite choice sooner.</div>
+      </div>
+
+      <!-- Trained agent playback (greedy rollout of the learned policy) -->
+      <div class="trained-panel" id="trainedPanel"></div>
+
+      <!-- Charts / diagrams (injected per mode) -->
+      <div id="chartsArea"></div>
+
+    </section>
+
+  </div><!-- .layout -->
 
 </div><!-- .main -->
 

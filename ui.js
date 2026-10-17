@@ -8,8 +8,20 @@
 /* ------------------------------------------------
    Globals (shared with charts.js via window scope)
    ------------------------------------------------ */
-let mode = 'basics', cur = 0, total = 0, stepsData = [], playing = false, playTimer = null;
+let mode = 'intro', cur = 0, total = 0, stepsData = [], playing = false, playTimer = null;
 const charts = {};
+
+/* Order = the recommended learning path for newcomers. */
+const MODES = ['intro', 'basics', 'qlearning', 'gridworld', 'epsilon'];
+const MODE_LABELS = { intro: 'Big Picture', basics: 'RL Basics', qlearning: 'Q-Learning', gridworld: 'Grid World', epsilon: 'Exploration' };
+const MODE_DESC = {
+  intro: 'what Reinforcement Learning is, in plain words',
+  basics: 'watch one full episode, step by step',
+  qlearning: 'how the agent remembers what works',
+  gridworld: 'learn a whole map by trial and error',
+  epsilon: 'try new things, or stick with the best so far?'
+};
+const NEXT_MODE = { intro: 'basics', basics: 'qlearning', qlearning: 'gridworld', gridworld: 'epsilon', epsilon: null };
 
 /* Trained-agent playback state (greedy rollout of the learned policy) */
 let trainedFrames = [], trainedIdx = -1, trainedPlaying = false, trainedTimer = null;
@@ -45,7 +57,8 @@ function renderChips(){
    ------------------------------------------------ */
 function buildTableHead(){
   const th=document.getElementById('tHead');
-  if(mode==='basics')      th.innerHTML='<tr><th>Step</th><th>State</th><th>Action</th><th>Reward</th><th>Total R</th></tr>';
+  if(mode==='intro')       th.innerHTML='<tr><th>Step</th><th>Concept</th><th>Details</th></tr>';
+  else if(mode==='basics') th.innerHTML='<tr><th>Step</th><th>State</th><th>Action</th><th>Reward</th><th>Total R</th></tr>';
   else if(mode==='qlearning') th.innerHTML='<tr><th>Step</th><th>State</th><th>Action</th><th>Reward</th><th>TD δ</th><th>Episode</th></tr>';
   else if(mode==='gridworld') th.innerHTML='<tr><th>Step</th><th>Title</th><th>Episode</th><th>Ep Step</th><th>Reward</th><th>ε</th></tr>';
   else                     th.innerHTML='<tr><th>Step</th><th>Action</th><th>Arm</th><th>Reward</th><th>Cumul R</th><th>Regret</th></tr>';
@@ -53,15 +66,19 @@ function buildTableHead(){
 
 function makeRow(i){
   const s=stepsData[i]||{};
+  if(mode==='intro'){
+    const details=(s.chips||[]).map(c=>`${c[0]}: ${c[1]}`).join(' &nbsp;·&nbsp; ');
+    return `<td>${i}</td><td style="color:var(--accent);font-weight:600">${s.title||''}</td><td style="color:var(--ink2);font-size:12px">${details}</td>`;
+  }
   if(mode==='basics')
-    return `<td>${i}</td><td style="color:#7a9bbb">${s.nextState||''}</td><td style="color:#ffb830">${s.action||''}</td><td style="color:${(s.totalR||0)>0?'#00e599':'#ff4d6a'}">${s.reward||''}</td><td style="color:#00e599;font-weight:700">${(s.totalR||0).toFixed(2)}</td>`;
+    return `<td>${i}</td><td style="color:var(--ink2)">${s.nextState||''}</td><td style="color:var(--gold)">${s.action||''}</td><td style="color:${(s.totalR||0)>0?'var(--green)':'var(--red)'}">${s.reward||''}</td><td style="color:var(--green);font-weight:700">${(s.totalR||0).toFixed(2)}</td>`;
   else if(mode==='qlearning'){
     const c=s.cfg||{};
-    return `<td>${i}</td><td style="color:#00d4ff">${(c.states&&s.s>=0)?c.states[s.s]||'':'N/A'}</td><td style="color:#ffb830">${(c.actions&&s.a>=0)?c.actions[s.a]||'':'N/A'}</td><td style="color:${(s.r||0)>0?'#00e599':'#ff4d6a'}">${s.r||0}</td><td style="color:${(s.delta||0)>0?'#00e599':'#ff4d6a'}">${(s.delta||0).toFixed(4)}</td><td style="color:#a855f7">${s.episode||1}</td>`;
+    return `<td>${i}</td><td style="color:var(--accent)">${(c.states&&s.s>=0)?c.states[s.s]||'':'N/A'}</td><td style="color:var(--gold)">${(c.actions&&s.a>=0)?c.actions[s.a]||'':'N/A'}</td><td style="color:${(s.r||0)>0?'var(--green)':'var(--red)'}">${s.r||0}</td><td style="color:${(s.delta||0)>0?'var(--green)':'var(--red)'}">${(s.delta||0).toFixed(4)}</td><td style="color:var(--purple)">${s.episode||1}</td>`;
   } else if(mode==='gridworld'){
-    return `<td>${i}</td><td style="color:#7a9bbb;font-size:10px">${(s.title||'').slice(0,28)}</td><td style="color:#a855f7">${s.episode||0}</td><td style="color:#ffb830">${s.epStep||0}</td><td style="color:${(s.totalR||0)>0?'#00e599':'#ff4d6a'}">${(s.totalR||0).toFixed(2)}</td><td style="color:#ff7043">${(s.epsilon||0).toFixed(2)}</td>`;
+    return `<td>${i}</td><td style="color:var(--ink2);font-size:10px">${(s.title||'').slice(0,28)}</td><td style="color:var(--purple)">${s.episode||0}</td><td style="color:var(--gold)">${s.epStep||0}</td><td style="color:${(s.totalR||0)>0?'var(--green)':'var(--red)'}">${(s.totalR||0).toFixed(2)}</td><td style="color:var(--orange)">${(s.epsilon||0).toFixed(2)}</td>`;
   } else {
-    return `<td>${i}</td><td style="color:${s.isExplore?'#ff7043':'#a855f7'}">${s.isExplore?'Explore':'Exploit'}</td><td style="color:#00d4ff">${s.labels?s.labels[s.chosen]||'':''}</td><td style="color:#00e599">${s.reward||0}</td><td style="color:#00e599;font-weight:700">${(s.cumulativeR||0).toFixed(2)}</td><td style="color:#ff4d6a">${(s.totalRegret||0).toFixed(2)}</td>`;
+    return `<td>${i}</td><td style="color:${s.isExplore?'var(--orange)':'var(--purple)'}">${s.isExplore?'Explore':'Exploit'}</td><td style="color:var(--accent)">${s.labels?s.labels[s.chosen]||'':''}</td><td style="color:var(--green)">${s.reward||0}</td><td style="color:var(--green);font-weight:700">${(s.cumulativeR||0).toFixed(2)}</td><td style="color:var(--red)">${(s.totalRegret||0).toFixed(2)}</td>`;
   }
 }
 
@@ -105,7 +122,7 @@ function refreshDots(){
 }
 
 /* ------------------------------------------------
-   Master UI refresh — called after every step change
+   Master UI refresh - called after every step change
    ------------------------------------------------ */
 function updateUI(){
   const s=stepsData[cur]||{};
@@ -114,15 +131,46 @@ function updateUI(){
   badge.textContent='Step '+cur;
   titleEl.textContent=s.title||('Step '+cur);
   if(s.isTerminal&&!s.isTrap){
-    badge.style.background='rgba(0,229,153,.2)'; badge.style.color='var(--green)'; badge.style.borderColor='var(--green)';
+    badge.style.background='var(--green-soft)'; badge.style.color='var(--green)'; badge.style.borderColor='var(--green)';
   } else if(s.isTrap){
-    badge.style.background='rgba(255,77,106,.15)'; badge.style.color='var(--red)'; badge.style.borderColor='var(--red)';
+    badge.style.background='var(--red-soft)'; badge.style.color='var(--red)'; badge.style.borderColor='var(--red)';
   } else {
-    badge.style.background='rgba(0,212,255,.12)'; badge.style.color='var(--accent)'; badge.style.borderColor='var(--accent)';
+    badge.style.background='var(--accent-soft)'; badge.style.color='var(--accent)'; badge.style.borderColor='var(--accent)';
   }
   document.getElementById('btnPrev').disabled=cur<=0;
   document.getElementById('btnNext').disabled=cur>=total;
   refreshDots(); renderFormula(); renderExplain(); renderChips(); renderCharts(); refreshTable();
+  updateNextCta();
+}
+
+/* Shown once the walkthrough for this stop is finished */
+function updateNextCta(){
+  const box=document.getElementById('nextCta'); if(!box) return;
+  const finished=cur>=total;
+  box.style.display=finished?'flex':'none';
+  if(!finished) return;
+  document.getElementById('nextCtaDone').textContent=MODE_LABELS[mode];
+  const n=NEXT_MODE[mode];
+  const btn=document.getElementById('nextCtaBtn');
+  btn.textContent=n?('Continue to '+MODE_LABELS[n]+' →'):'You made it. Replay any stop!';
+  btn.disabled=!n;
+}
+function goToNextMode(){
+  const n=NEXT_MODE[mode];
+  if(n){ switchMode(n); window.scrollTo({top:0,behavior:'smooth'}); }
+}
+
+/* Tab bar: tick finished stops and describe the current one */
+function refreshRoadmap(){
+  const curIdx=MODES.indexOf(mode);
+  document.querySelectorAll('.tab-btn').forEach(el=>{
+    const idx=MODES.indexOf(el.dataset.mode);
+    el.classList.toggle('done',idx<curIdx);
+    const num=el.querySelector('.tab-num');
+    if(num) num.textContent=idx<curIdx?'✓':idx+1;
+  });
+  const d=document.getElementById('tabDesc');
+  if(d) d.innerHTML='<b>Stop '+(curIdx+1)+' of '+MODES.length+':</b> '+MODE_DESC[mode];
 }
 
 /* ------------------------------------------------
@@ -151,12 +199,12 @@ function stopPlay(){
    Trained agent playback
    Once a demo has finished training (the walkthrough
    above has produced a final Q-table), this replays
-   the LEARNED policy greedily — no exploration, no
-   scripted narrative — against the environment, so
+   the LEARNED policy greedily - no exploration, no
+   scripted narrative - against the environment, so
    you can watch the trained model actually perform.
    ------------------------------------------------ */
 function playTrainedAgent(){
-  if(mode==='basics') return;
+  if(mode==='basics'||mode==='intro') return;
   stopPlay();
   if(trainedPlaying){ stopTrainedPlay(); return; }
 
@@ -228,7 +276,7 @@ function renderTrainedPanel(){
     if(isLast){
       const success = f.terminal && f.r>0;
       outcomeHtml = `<div class="trained-summary">
-        <div class="trained-stat"><span class="l">Outcome</span><span class="v" style="color:${success?'var(--green)':'var(--text2)'}">${success?'Goal reached':'Episode ended'}</span></div>
+        <div class="trained-stat"><span class="l">Outcome</span><span class="v" style="color:${success?'var(--green)':'var(--ink2)'}">${success?'Goal reached':'Episode ended'}</span></div>
         <div class="trained-stat"><span class="l">Steps</span><span class="v">${frames.length}</span></div>
         <div class="trained-stat"><span class="l">Total Reward</span><span class="v" style="color:${f.totalR>0?'var(--green)':'var(--red)'}">${f.totalR}</span></div>
       </div>`;
@@ -253,7 +301,7 @@ function renderTrainedPanel(){
     bodyHtml = `<div class="trained-body"><div class="trained-visual">${grid}</div>${log}</div>`;
     if(isLast){
       outcomeHtml = `<div class="trained-summary">
-        <div class="trained-stat"><span class="l">Outcome</span><span class="v" style="color:${f.isGoal?'var(--green)':f.isTrap?'var(--red)':'var(--text2)'}">${f.isGoal?'Goal reached':f.isTrap?'Fell in trap':'Stalled'}</span></div>
+        <div class="trained-stat"><span class="l">Outcome</span><span class="v" style="color:${f.isGoal?'var(--green)':f.isTrap?'var(--red)':'var(--ink2)'}">${f.isGoal?'Goal reached':f.isTrap?'Fell in trap':'Stalled'}</span></div>
         <div class="trained-stat"><span class="l">Steps</span><span class="v">${frames.length}</span></div>
         <div class="trained-stat"><span class="l">Total Reward</span><span class="v" style="color:${f.totalR>0?'var(--green)':'var(--red)'}">${f.totalR}</span></div>
       </div>`;
@@ -278,7 +326,7 @@ function renderTrainedPanel(){
 
   panel.innerHTML = `
     <div class="trained-head">
-      <span class="trained-badge">🏁 Trained Agent — Greedy Policy</span>
+      <span class="trained-badge">🏁 Trained Agent - Greedy Policy</span>
       <span class="trained-status">Step ${trainedIdx+1} / ${frames.length}${isLast?' · complete':''}</span>
       <button class="trained-close" onclick="closeTrainedPanel()">✕ Close</button>
     </div>
@@ -292,17 +340,20 @@ function renderTrainedPanel(){
    ------------------------------------------------ */
 function switchMode(m){
   mode=m;
-  document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',['basics','qlearning','gridworld','epsilon'][i]===m));
+  document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',MODES[i]===m));
   document.querySelectorAll('.sc').forEach(el=>el.classList.remove('active'));
   document.getElementById('sc-'+m).classList.add('active');
-  document.getElementById('btnTrained').disabled = (m==='basics');
+  document.getElementById('btnTrained').disabled = (m==='basics'||m==='intro');
+  refreshRoadmap();
   resetAll();
 }
 
 function resetAll(){
   stopPlay(); closeTrainedPanel(); cur=0;
   document.getElementById('tBody').innerHTML='';
-  if(mode==='basics'){
+  if(mode==='intro'){
+    stepsData=buildIntro(gv('intro-sc'));
+  } else if(mode==='basics'){
     stepsData=buildBasics(gv('basics-sc'));
   } else if(mode==='qlearning'){
     const alpha=gc('ql-alpha')/10;
@@ -325,7 +376,7 @@ function resetAll(){
    Keyboard shortcuts
    ------------------------------------------------ */
 document.addEventListener('keydown', e=>{
-  if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT') return;
+  if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT'||(e.key===' '&&e.target.tagName==='BUTTON')) return;
   if(e.key==='.') nextStep();
   if(e.key===',') prevStep();
   if(e.key===' '){ e.preventDefault(); togglePlay(); }
@@ -335,3 +386,4 @@ document.addEventListener('keydown', e=>{
    Boot
    ------------------------------------------------ */
 resetAll();
+refreshRoadmap();
