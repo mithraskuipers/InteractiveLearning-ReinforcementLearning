@@ -74,49 +74,26 @@ function setupCharts(){
   Object.keys(charts).forEach(k=>delete charts[k]);
   const area = document.getElementById('chartsArea');
   const cv = id => `<div class="chart-inner"><canvas id="${id}"></canvas></div>`;
+  const box = (title,id) => `<div class="chart-box"><h4>${title}</h4>${cv(id)}</div>`;
+  const g = c => `<span style="text-transform:none">${c}</span>`;
+  /* Every layout fills the same fixed area (see .fill in style.css),
+     so switching modes or stepping never changes any region's size. */
   if(mode==='intro'){
-    area.innerHTML=`<div id="loopDiagram"></div><div class="loop-note" id="loopNote"></div>`;
+    area.innerHTML=`<div class="fill intro"><div id="loopDiagram"></div><div class="loop-note" id="loopNote"></div></div>`;
   } else if(mode==='basics'){
-    area.innerHTML=`
-      <div class="chart-grid cols-2">
-        <div class="chart-box"><h4>Cumulative Reward vs Episode Steps</h4>${cv('b-reward')}</div>
-        <div class="chart-box"><h4>State-Action-Reward Flow</h4>${cv('b-sar')}</div>
-      </div>`;
+    area.innerHTML=`<div class="fill rows-1">${box('Cumulative Reward vs Episode Steps','b-reward')}${box('State-Action-Reward Flow','b-sar')}</div>`;
   } else if(mode==='qlearning'){
-    area.innerHTML=`
-      <div class="chart-grid cols-2" style="margin-bottom:12px">
-        <div class="chart-box"><h4>Q-Values Over Updates</h4>${cv('ql-qvals')}</div>
-        <div class="chart-box"><h4>TD Error (<span style="text-transform:none">δ</span>) per Step</h4>${cv('ql-delta')}</div>
-      </div>
-      <div class="qtable-wrap" id="qtableWrap">
-        <h4>Q-Table: current values</h4>
-        <div class="qtable-scroll"><table id="qtable"></table></div>
-      </div>`;
+    area.innerHTML=`<div class="fill ql">${box('Q-Values Over Updates','ql-qvals')}${box('TD Error (delta) per Step','ql-delta')}
+      <div class="qtable-wrap" id="qtableWrap"><h4>Q-Table: current values</h4><div class="qtable-scroll"><table id="qtable"></table></div></div></div>`;
   } else if(mode==='gridworld'){
-    area.innerHTML=`
-      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;align-items:flex-start">
-        <div id="gwGrid"></div>
-        <div style="flex:1;min-width:260px">
-          <div class="chart-box"><h4>Episode Reward Over Time</h4>${cv('gw-rew')}</div>
-        </div>
-      </div>
-      <div class="chart-grid cols-2">
-        <div class="chart-box"><h4>Visit Count (heat map)</h4>${cv('gw-visits')}</div>
-        <div class="chart-box"><h4>Max Q per State</h4>${cv('gw-qmax')}</div>
-      </div>`;
+    area.innerHTML=`<div class="fill gw">
+      <div class="gw-top"><div class="gw-gridwrap"><div id="gwGrid"></div></div>${box('Episode Reward Over Time','gw-rew')}</div>
+      ${box('Visit Count (heat map)','gw-visits')}${box('Max Q per State','gw-qmax')}</div>`;
     canvasChart('gw-rew',{type:'line',labels:[],datasets:[
       {label:'Episode Reward',data:[],color:'#157a5e',width:2,dots:true,fill:'rgba(21,122,94,.07)'}
     ],refLines:[{value:0,color:'rgba(18,23,43,.25)'}]});
   } else {
-    area.innerHTML=`
-      <div class="chart-grid cols-2" style="margin-bottom:12px">
-        <div class="chart-box"><h4>Q Estimates per Arm</h4>${cv('ep-arms')}</div>
-        <div class="chart-box"><h4>Epsilon Decay</h4>${cv('ep-eps')}</div>
-      </div>
-      <div class="chart-grid cols-2">
-        <div class="chart-box"><h4>Cumulative Reward</h4>${cv('ep-cum')}</div>
-        <div class="chart-box"><h4>Cumulative Regret</h4>${cv('ep-reg')}</div>
-      </div>`;
+    area.innerHTML=`<div class="fill rows-2">${box('Q Estimates per Arm','ep-arms')}${box('Epsilon Decay','ep-eps')}${box('Cumulative Reward','ep-cum')}${box('Cumulative Regret','ep-reg')}</div>`;
   }
 }
 
@@ -199,6 +176,7 @@ function renderGWCharts(s){
     const EMOJI={goal:'🏆',trap:'⚠️',wall:'⛔',agent:'🤖',start:'🚀'};
     gwDiv.innerHTML='';
     gwDiv.style.gridTemplateColumns=`repeat(${N},1fr)`;
+    gwDiv.style.gridTemplateRows=`repeat(${N},1fr)`;
     gwDiv.className='gridworld';
     for(let i=0;i<N*N;i++){
       const cell=document.createElement('div');

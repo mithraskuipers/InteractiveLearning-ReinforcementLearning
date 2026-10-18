@@ -47,7 +47,11 @@ function renderExplain(){
 function renderChips(){
   const s=stepsData[cur]||{};
   const chips=s.chips||[];
-  document.getElementById('chipsRow').innerHTML=chips.map(([l,v,c])=>
+  const row=document.getElementById('chipsRow');
+  const cols=chips.length<=2?Math.max(chips.length,1):(chips.length<=4?2:3);
+  row.style.gridTemplateColumns=`repeat(${cols},minmax(0,1fr))`;
+  row.style.gridTemplateRows=chips.length<=cols?'1fr':'repeat(2,minmax(0,1fr))';
+  row.innerHTML=chips.map(([l,v,c])=>
     `<div class="chip ${c||''}"><div class="chip-label">${l}</div><div class="chip-val">${v}</div></div>`
   ).join('');
 }
@@ -76,7 +80,7 @@ function makeRow(i){
     const c=s.cfg||{};
     return `<td>${i}</td><td style="color:var(--accent)">${(c.states&&s.s>=0)?c.states[s.s]||'':'N/A'}</td><td style="color:var(--gold)">${(c.actions&&s.a>=0)?c.actions[s.a]||'':'N/A'}</td><td style="color:${(s.r||0)>0?'var(--green)':'var(--red)'}">${s.r||0}</td><td style="color:${(s.delta||0)>0?'var(--green)':'var(--red)'}">${(s.delta||0).toFixed(4)}</td><td style="color:var(--purple)">${s.episode||1}</td>`;
   } else if(mode==='gridworld'){
-    return `<td>${i}</td><td style="color:var(--ink2);font-size:10px">${(s.title||'').slice(0,28)}</td><td style="color:var(--purple)">${s.episode||0}</td><td style="color:var(--gold)">${s.epStep||0}</td><td style="color:${(s.totalR||0)>0?'var(--green)':'var(--red)'}">${(s.totalR||0).toFixed(2)}</td><td style="color:var(--orange)">${(s.epsilon||0).toFixed(2)}</td>`;
+    return `<td>${i}</td><td style="color:var(--ink2);font-size:10px">${(s.title||'').slice(0,16)}</td><td style="color:var(--purple)">${s.episode||0}</td><td style="color:var(--gold)">${s.epStep||0}</td><td style="color:${(s.totalR||0)>0?'var(--green)':'var(--red)'}">${(s.totalR||0).toFixed(2)}</td><td style="color:var(--orange)">${(s.epsilon||0).toFixed(2)}</td>`;
   } else {
     return `<td>${i}</td><td style="color:${s.isExplore?'var(--orange)':'var(--purple)'}">${s.isExplore?'Explore':'Exploit'}</td><td style="color:var(--accent)">${s.labels?s.labels[s.chosen]||'':''}</td><td style="color:var(--green)">${s.reward||0}</td><td style="color:var(--green);font-weight:700">${(s.cumulativeR||0).toFixed(2)}</td><td style="color:var(--red)">${(s.totalRegret||0).toFixed(2)}</td>`;
   }
@@ -143,21 +147,23 @@ function updateUI(){
   updateNextCta();
 }
 
-/* Shown once the walkthrough for this stop is finished */
+/* The Next button doubles as "go to the next stop" once this stop's
+   walkthrough is finished, so no extra element is needed (no layout shift). */
 function updateNextCta(){
-  const box=document.getElementById('nextCta'); if(!box) return;
-  const finished=cur>=total;
-  box.style.display=finished?'flex':'none';
-  if(!finished) return;
-  document.getElementById('nextCtaDone').textContent=MODE_LABELS[mode];
-  const n=NEXT_MODE[mode];
-  const btn=document.getElementById('nextCtaBtn');
-  btn.textContent=n?('Continue to '+MODE_LABELS[n]+' →'):'You made it. Replay any stop!';
-  btn.disabled=!n;
+  const btn=document.getElementById('btnNext'); if(!btn) return;
+  const finished=cur>=total, n=NEXT_MODE[mode];
+  btn.classList.toggle('cta',finished&&!!n);
+  btn.textContent=!finished?'Next ▶':(n?'Next stop ▶':'All done ✓');
+  btn.title=finished&&n?('Continue to '+MODE_LABELS[n]):'';
+  btn.disabled=finished&&!n;
 }
+function onNext(){ if(cur<total) nextStep(); else goToNextMode(); }
 function goToNextMode(){
   const n=NEXT_MODE[mode];
-  if(n){ switchMode(n); window.scrollTo({top:0,behavior:'smooth'}); }
+  if(n) switchMode(n);
+}
+function toggleGlossary(){
+  const g=document.getElementById('glossary'); g.hidden=!g.hidden;
 }
 
 /* Tab bar: tick finished stops and describe the current one */
@@ -376,6 +382,7 @@ function resetAll(){
    Keyboard shortcuts
    ------------------------------------------------ */
 document.addEventListener('keydown', e=>{
+  if(e.key==='Escape'){ document.getElementById('glossary').hidden=true; return; }
   if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT'||(e.key===' '&&e.target.tagName==='BUTTON')) return;
   if(e.key==='.') nextStep();
   if(e.key===',') prevStep();
